@@ -2,10 +2,90 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Заказ {{.ID}}</title>
+    <title>Заказ {{.OrderUID}}</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>Заказ № {{.ID}}</h1>
-    
+    <div class="container">
+        <h1>Детали заказа № {{.OrderUID}}</h1>
+        <!-- Основная информация -->
+        <h2>Основная информация</h2>
+        <ul>
+            <li>Трек-номер: {{.TrackNumber}}</li>
+            <li>Entry: {{.Entry}}</li>
+            <li>Locale: {{.Locale}}</li>
+            <li>Internal Signature: {{.InternalSignature}}</li>
+            <li>Customer ID: {{.CustomerID}}</li>
+            <li>Delivery Service: {{.DeliveryService}}</li>
+            <li>Shardkey: {{.Shardkey}}</li>
+            <li>Sm ID: {{.SmID}}</li>
+            <li>Date Created: {{.DateCreated}}</li>
+            <li>Oof Shard: {{.OofShard}}</li>
+        </ul>
+
+        <!-- Информация о доставке -->
+        <h2>Информация о доставке</h2>
+        <ul>
+            <li>Имя: {{.Delivery.Name}}</li>
+            <li>Телефон: {{.Delivery.Phone}}</li>
+            <li>ZIP: {{.Delivery.Zip}}</li>
+            <li>Город: {{.Delivery.City}}</li>
+            <li>Адрес: {{.Delivery.Address}}</li>
+            <li>Регион: {{.Delivery.Region}}</li>
+            <li>Email: {{.Delivery.Email}}</li>
+        </ul>
+
+        <!-- Информация об оплате -->
+        <h2>Информация об оплате</h2>
+        <ul>
+            <li>Транзакция: {{.Payment.Transaction}}</li>
+            <li>RequestID: {{.Payment.RequestID}}</li>
+            <li>Валюта: {{.Payment.Currency}}</li>
+            <li>Провайдер: {{.Payment.Provider}}</li>
+            <li>Сумма: {{.Payment.Amount}}</li>
+            <li>PaymentDT: {{.Payment.PaymentDt}}</li>
+            <li>Банк: {{.Payment.Bank}}</li>
+            <li>Стоимость доставки: {{.Payment.DeliveryCost}}</li>
+            <li>Общая сумма товаров: {{.Payment.GoodsTotal}}</li>
+            <li>Custom Fee: {{.Payment.CustomFee}}</li>
+        </ul>
+
+        <!-- Список товаров -->
+        <h2>Список товаров</h2>
+        <table border="1" cellspacing="0" cellpadding="5">
+            <thead>
+                <tr>
+                    <th>ChrtID</th>
+                    <th>TrackNumber</th>
+                    <th>Price</th>
+                    <th>Rid</th>
+                    <th>Name</th>
+                    <th>Sale</th>
+                    <th>Size</th>
+                    <th>TotalPrice</th>
+                    <th>NmID</th>
+                    <th>Brand</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Items}}
+                <tr>
+                    <td>{{.ChrtID}}</td>
+                    <td>{{.TrackNumber}}</td>
+                    <td>{{.Price}}</td>
+                    <td>{{.Rid}}</td>
+                    <td>{{.Name}}</td>
+                    <td>{{.Sale}}</td>
+                    <td>{{.Size}}</td>
+                    <td>{{.TotalPrice}}</td>
+                    <td>{{.NmID}}</td>
+                    <td>{{.Brand}}</td>
+                    <td>{{.Status}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
 </body>
 </html>

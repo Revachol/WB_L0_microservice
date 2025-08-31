@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Revachol/WB_L0_microservice/internal/models"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
@@ -72,6 +73,52 @@ func (db *DB) GetOrderByID(id string) (Order, error) {
 	var order Order
 	err := db.conn.Get(&order, "SELECT id, data FROM orders WHERE id=$1", id)
 	return order, err
+}
+
+// GetFullOrderByUID возвращает заказ со всеми связанными данными по order_uid
+func (db *DB) GetFullOrderByUID(oid string) (models.Order, error) {
+	var order models.Order
+	// Получаем данные из таблицы orders
+	err := db.conn.Get(&order, `
+		SELECT order_uid, track_number, entry, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard 
+		FROM orders WHERE order_uid=$1
+	`, oid)
+	if err != nil {
+		log.Printf("Ошибка выборки из orders: %v", err)
+		return order, err
+	}
+
+	// Получаем данные из таблицы deliveries
+	err = db.conn.Get(&order.Delivery, `
+		SELECT name, phone, zip, city, address, region, email 
+		FROM deliveries WHERE order_uid=$1
+	`, oid)
+	if err != nil {
+		log.Printf("Ошибка выборки из deliveries: %v", err)
+		return order, err
+	}
+
+	// Получаем данные из таблицы payments
+	err = db.conn.Get(&order.Payment, `
+		SELECT transaction, request_id, currency, provider, amount, payment_dt, bank, delivery_cost, goods_total, custom_fee 
+		FROM payments WHERE order_uid=$1
+	`, oid)
+	if err != nil {
+		log.Printf("Ошибка выборки из payments: %v", err)
+		return order, err
+	}
+
+	// Получаем данные из таблицы items
+	err = db.conn.Select(&order.Items, `
+		SELECT chrt_id, track_number, price, rid, name, sale, size, total_price, nm_id, brand, status 
+		FROM items WHERE order_uid=$1
+	`, oid)
+	if err != nil {
+		log.Printf("Ошибка выборки из items: %v", err)
+		return order, err
+	}
+
+	return order, nil
 }
 
 // Close закрывает соединение с БД

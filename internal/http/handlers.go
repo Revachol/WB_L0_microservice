@@ -27,6 +27,8 @@ func HttpServer() {
 	mux.HandleFunc("/", IndexHandler)
 	mux.HandleFunc("/order", OrderRedirectHandler)
 	mux.HandleFunc("/order/", OrderHandler)
+	// Новый endpoint для debug: получение заказов и вывод их в терминал
+	mux.HandleFunc("/debug/orders", DebugOrdersHandler)
 
 	log.Println("Сервер запущен на http://localhost:" + port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))
@@ -55,18 +57,33 @@ func OrderRedirectHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func OrderHandler(w http.ResponseWriter, r *http.Request) {
-	orderID := strings.TrimPrefix(r.URL.Path, "/order/")
-	log.Println("Получен order_id:", orderID)
+	orderUID := strings.TrimPrefix(r.URL.Path, "/order/")
+	log.Println("Получен order_uid:", orderUID)
 
-	// Создаём подключение к БД (параметры не используются, т.к. внутри New захардкожены)
 	db := database.New("", "", "", "", 0)
-	order, err := db.GetOrderByID(orderID)
+	fullOrder, err := db.GetFullOrderByUID(orderUID)
 	if err != nil {
+		log.Printf("Ошибка получения заказа по order_uid %s: %v", orderUID, err)
 		http.Error(w, "Заказ не найден", http.StatusNotFound)
 		return
 	}
+	// Рендерим HTML-шаблон вместо вывода JSON
+	renderTemplate(w, "order.html", fullOrder)
+}
 
-	// Выводим данные заказа как JSON
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(order.Data))
+// Новый обработчик для получения всех заказов и вывода их в лог
+func DebugOrdersHandler(w http.ResponseWriter, r *http.Request) {
+	// Создаём подключение к БД (параметры не используются, т.к. внутри New захардкожены)
+	db := database.New("", "", "", "", 0)
+	orders, err := db.GetOrders()
+	if err != nil {
+		log.Printf("Ошибка получения заказов: %v", err)
+		http.Error(w, "Ошибка получения заказов", http.StatusInternalServerError)
+		return
+	}
+	for _, o := range orders {
+		log.Printf("Заказ ID: %s, Data: %s", o.ID, o.Data)
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Заказы залогированы в терминале"))
 }
