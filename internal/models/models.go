@@ -1,6 +1,5 @@
 package models
 
-// Обновлены структуры с добавлением тегов db для сканирования данных из БД
 type Order struct {
 	OrderUID          string `json:"order_uid" db:"order_uid"`
 	TrackNumber       string `json:"track_number" db:"track_number"`

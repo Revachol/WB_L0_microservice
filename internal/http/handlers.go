@@ -1,17 +1,20 @@
 package http
 
 import (
+	"database/sql"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
-	"github.com/Revachol/WB_L0_microservice/internal/database" // добавлен импорт БД
+	"github.com/Revachol/WB_L0_microservice/internal/cache"
+	"github.com/Revachol/WB_L0_microservice/internal/database"
 )
 
-func HttpServer() {
+func HttpServer(cache *cache.Cache, db *sql.DB) {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8081"
@@ -19,16 +22,14 @@ func HttpServer() {
 
 	mux := http.NewServeMux()
 
-	// статика
 	fs := http.FileServer(http.Dir("web/static"))
 	mux.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	// обработчики
 	mux.HandleFunc("/", IndexHandler)
 	mux.HandleFunc("/order", OrderRedirectHandler)
-	mux.HandleFunc("/order/", OrderHandler)
-	// Новый endpoint для debug: получение заказов и вывод их в терминал
-	mux.HandleFunc("/debug/orders", DebugOrdersHandler)
+	mux.HandleFunc("/order/", OrderHandler(cache))
+	mux.HandleFunc("/order_db/", OrderHandlerDB(db))
 
 	log.Println("Сервер запущен на http://localhost:" + port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))
@@ -42,7 +43,6 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data any) {
 	}
 	err = t.Execute(w, data)
 	if err != nil {
-		// логируем ошибку вместо повторного вызова http.Error
 		log.Printf("Ошибка рендера шаблона: %v", err)
 	}
 }
@@ -56,34 +56,39 @@ func OrderRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/order/"+orderID, http.StatusSeeOther)
 }
 
-func OrderHandler(w http.ResponseWriter, r *http.Request) {
-	orderUID := strings.TrimPrefix(r.URL.Path, "/order/")
-	log.Println("Получен order_uid:", orderUID)
+func OrderHandler(cache *cache.Cache) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 
-	db := database.New("", "", "", "", 0)
-	fullOrder, err := db.GetFullOrderByUID(orderUID)
-	if err != nil {
-		log.Printf("Ошибка получения заказа по order_uid %s: %v", orderUID, err)
-		http.Error(w, "Заказ не найден", http.StatusNotFound)
-		return
+		id := strings.TrimPrefix(r.URL.Path, "/order/")
+		order, ok := cache.Get(id)
+		if !ok {
+			log.Printf("Order %s not found in cache", id)
+			http.Error(w, "Order not found", http.StatusNotFound)
+			return
+		}
+
+		duration := time.Since(start)
+		log.Printf("Order %s served from CACHE in %v ✅", id, duration)
+
+		renderTemplate(w, "order.html", order)
 	}
-	// Рендерим HTML-шаблон вместо вывода JSON
-	renderTemplate(w, "order.html", fullOrder)
 }
 
-// Новый обработчик для получения всех заказов и вывода их в лог
-func DebugOrdersHandler(w http.ResponseWriter, r *http.Request) {
-	// Создаём подключение к БД (параметры не используются, т.к. внутри New захардкожены)
-	db := database.New("", "", "", "", 0)
-	orders, err := db.GetOrders()
-	if err != nil {
-		log.Printf("Ошибка получения заказов: %v", err)
-		http.Error(w, "Ошибка получения заказов", http.StatusInternalServerError)
-		return
+func OrderHandlerDB(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		id := strings.TrimPrefix(r.URL.Path, "/order_db/")
+		order, err := database.GetFullOrderByID(r.Context(), db, id)
+		if err != nil {
+			http.Error(w, "Order not found", http.StatusNotFound)
+			return
+		}
+
+		duration := time.Since(start)
+		log.Printf("Order %s served from DB in %v 🐢", id, duration)
+
+		renderTemplate(w, "order.html", order)
 	}
-	for _, o := range orders {
-		log.Printf("Заказ ID: %s, Data: %s", o.ID, o.Data)
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Заказы залогированы в терминале"))
 }

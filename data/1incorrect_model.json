@@ -1,0 +1,11 @@
+{
+    "order_uid": "badjson3",
+    "track_number": "TRACK-FAIL",
+    "items": [
+        {
+            "chrt_id": 123,
+            "track_number": "TN1",
+            "price": 100
+        },
+    ]
+}

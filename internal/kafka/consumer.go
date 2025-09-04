@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/Revachol/WB_L0_microservice/internal/cache"
 	"github.com/Revachol/WB_L0_microservice/internal/models"
 	"github.com/segmentio/kafka-go"
 )
@@ -13,9 +14,10 @@ import (
 type Consumer struct {
 	reader *kafka.Reader
 	db     *sql.DB
+	cache  *cache.Cache
 }
 
-func NewConsumer(brokers []string, topic, groupID string, db *sql.DB) *Consumer {
+func NewConsumer(brokers []string, topic, groupID string, db *sql.DB, cache *cache.Cache) *Consumer {
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: brokers,
 		Topic:   topic,
@@ -25,6 +27,7 @@ func NewConsumer(brokers []string, topic, groupID string, db *sql.DB) *Consumer 
 	return &Consumer{
 		reader: r,
 		db:     db,
+		cache:  cache,
 	}
 }
 
@@ -47,7 +50,9 @@ func (c *Consumer) Run(ctx context.Context) {
 			continue
 		}
 
-		log.Printf("order %s saved", order.OrderUID)
+		c.cache.Add(order)
+
+		log.Printf("order %s saved and cached", order.OrderUID)
 	}
 }
 
@@ -58,7 +63,7 @@ func (c *Consumer) saveOrder(ctx context.Context, order models.Order) error {
 	}
 	defer tx.Rollback()
 
-	// 1. orders
+	//orders
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO orders 
 		(order_uid, track_number, entry, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard)
@@ -69,7 +74,7 @@ func (c *Consumer) saveOrder(ctx context.Context, order models.Order) error {
 		return err
 	}
 
-	// 2. deliveries
+	//deliveries
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO deliveries 
 		(order_uid, name, phone, zip, city, address, region, email)
@@ -80,7 +85,7 @@ func (c *Consumer) saveOrder(ctx context.Context, order models.Order) error {
 		return err
 	}
 
-	// 3. payments
+	//payments
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO payments 
 		(order_uid, transaction, request_id, currency, provider, amount, payment_dt, bank, delivery_cost, goods_total, custom_fee)
@@ -92,7 +97,7 @@ func (c *Consumer) saveOrder(ctx context.Context, order models.Order) error {
 		return err
 	}
 
-	// 4. items
+	//items
 	for _, item := range order.Items {
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO items 

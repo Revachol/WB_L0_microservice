@@ -7,8 +7,9 @@
 </head>
 <body>
     <div class="container">
+        <div class="header"> 
         <h1>Детали заказа № {{.OrderUID}}</h1>
-        <!-- Основная информация -->
+        </div>
         <h2>Основная информация</h2>
         <ul>
             <li>Трек-номер: {{.TrackNumber}}</li>
@@ -23,7 +24,6 @@
             <li>Oof Shard: {{.OofShard}}</li>
         </ul>
 
-        <!-- Информация о доставке -->
         <h2>Информация о доставке</h2>
         <ul>
             <li>Имя: {{.Delivery.Name}}</li>
@@ -35,7 +35,6 @@
             <li>Email: {{.Delivery.Email}}</li>
         </ul>
 
-        <!-- Информация об оплате -->
         <h2>Информация об оплате</h2>
         <ul>
             <li>Транзакция: {{.Payment.Transaction}}</li>
@@ -50,7 +49,6 @@
             <li>Custom Fee: {{.Payment.CustomFee}}</li>
         </ul>
 
-        <!-- Список товаров -->
         <h2>Список товаров</h2>
         <table border="1" cellspacing="0" cellpadding="5">
             <thead>

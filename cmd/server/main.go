@@ -7,27 +7,25 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Revachol/WB_L0_microservice/internal/cache"
 	"github.com/Revachol/WB_L0_microservice/internal/database"
 	apphttp "github.com/Revachol/WB_L0_microservice/internal/http"
 	"github.com/Revachol/WB_L0_microservice/internal/kafka"
 )
 
 func main() {
-	// Получаем объект подключения через database.New
 	dbObj := database.New("", "", "", "", 0)
+	cache := cache.NewCache(dbObj.SQL())
 	defer dbObj.Close()
 
-	// Запускаем HTTP-сервер в горутине
-	go apphttp.HttpServer()
+	go apphttp.HttpServer(cache, dbObj.SQL())
 
-	// Создаём контекст и запускаем consumer с подключением к БД
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	consumer := kafka.NewConsumer([]string{"localhost:9092"}, "orders", "my-group", dbObj.SQL())
+	consumer := kafka.NewConsumer([]string{"localhost:9092"}, "orders", "my-group", dbObj.SQL(), cache)
 	go consumer.Run(ctx)
 
-	// Ожидаем сигнала завершения
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	<-sigChan
